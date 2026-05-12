@@ -100,7 +100,6 @@ export default function App() {
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
   )
   const [controlOpen, setControlOpen] = useState(true)
-  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Load session on app startup
   useEffect(() => {
@@ -246,39 +245,19 @@ export default function App() {
     }
   }, [])
 
-  const toggleFullscreen = useCallback(() => {
-    const el = rootRef.current ?? document.documentElement
-    if (!document.fullscreenElement) {
-      void el.requestFullscreen?.()
-      setIsFullscreen(true)
-    } else {
-      void document.exitFullscreen?.()
-      setIsFullscreen(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
-
   const pending = pendingRef.current
   const shuffling = phase === 'shuffling'
   const showCountdown = phase === 'countdown' && countdown !== null && countdown >= 1
   const revealed = phase === 'revealed'
 
   return (
-    <div className={`app ${isFullscreen ? 'app--fullscreen' : ''}`} ref={rootRef}>
+    <div className="app" ref={rootRef}>
       <header className="topbar">
         <div className="topbar__brand">
           <img className="topbar__logo" src={logo} alt="" width={42} height={42} decoding="async" />
           <div>
             <h1 className="topbar__title">Topsell Undian</h1>
-            <p className="topbar__sub">PT. Topsell Raharja Indonesia</p>
+            <p className="topbar__sub">PT. Topsel Raharja Indonesia</p>
           </div>
         </div>
         <div className="topbar__actions">
@@ -326,9 +305,6 @@ export default function App() {
             />
             <span>{sfxLevel}%</span>
           </label>
-          <button type="button" className="btn btn--ghost" onClick={toggleFullscreen}>
-            Layar penuh
-          </button>
           <button
             type="button"
             className="btn btn--ghost"
@@ -339,7 +315,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className={`layout ${isFullscreen ? 'layout--fullscreen' : ''}`}>
+      <div className="layout">
         <main className="stage">
           <DrawViewport
             key={drawKey}
@@ -571,7 +547,7 @@ export default function App() {
       </button>
 
       <footer className="foot">
-        <span>Topsell Undian - Tim Topsell Web</span>
+        <span>*Untuk Fullscreen gunakan tombol F11</span>
       </footer>
     </div>
   )

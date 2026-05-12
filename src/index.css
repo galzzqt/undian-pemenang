@@ -43,18 +43,6 @@ body {
   transition: background 0.3s ease;
 }
 
-.app--fullscreen {
-  background: #ffffff;
-}
-
-.app--fullscreen .layout {
-  background: #ffffff;
-}
-
-.app--fullscreen .winner-modal {
-  z-index: 300;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -150,11 +138,6 @@ body {
   transition: grid-template-columns 0.3s ease;
 }
 
-.layout--fullscreen {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr auto;
-}
-
 .side-column {
   border-left: 1px solid var(--line);
   background: var(--panel);
@@ -165,12 +148,6 @@ body {
   min-height: 0;
   box-shadow: -8px 0 32px rgba(15, 23, 42, 0.04);
   transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.app--fullscreen .side-column {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
 }
 
 .stage {
@@ -610,16 +587,6 @@ body {
   pointer-events: none;
 }
 
-.app--fullscreen .panel {
-  max-height: none;
-  overflow: hidden;
-}
-
-.app--fullscreen .panel--history .history-list {
-  max-height: 220px;
-  overflow: auto;
-}
-
 .panel--history .history-list {
   max-height: min(46vh, 420px);
 }
@@ -769,10 +736,6 @@ body {
 
   .panel--history .history-list {
     max-height: 28vh;
-  }
-
-  .app--fullscreen .side-column {
-    grid-template-columns: 1fr;
   }
 
   .panel__close {
