@@ -1,6 +1,10 @@
-/** Web Audio: ambient bed + draw ticks + countdown + reveal sting */
+/** Web Audio: draw ticks + countdown + reveal sting, plus MP3 backsound */
+import backsoundUrl from '../assets/backsound.mp3'
 
 let ctx: AudioContext | null = null
+let bgAudio: HTMLAudioElement | null = null
+let sfxVolume = 1
+let backsoundVolume = 0.35
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null
@@ -15,39 +19,39 @@ export async function resumeAudio(): Promise<void> {
   if (c?.state === 'suspended') await c.resume()
 }
 
-let bgOscs: OscillatorNode[] = []
+function getBgAudio(): HTMLAudioElement | null {
+  if (typeof window === 'undefined') return null
+  if (!bgAudio) {
+    bgAudio = new Audio(backsoundUrl)
+    bgAudio.loop = true
+    bgAudio.preload = 'auto'
+    bgAudio.volume = backsoundVolume
+  }
+  return bgAudio
+}
+
+export function setBacksoundVolume(volume: number): void {
+  backsoundVolume = Math.max(0, Math.min(1, volume))
+  const audio = getBgAudio()
+  if (audio) audio.volume = backsoundVolume
+}
+
+export function setSfxVolume(volume: number): void {
+  sfxVolume = Math.max(0, Math.min(1, volume))
+}
 
 export function setBacksound(on: boolean): void {
-  const c = getCtx()
-  if (!c) return
+  const audio = getBgAudio()
+  if (!audio) return
+
   if (!on) {
-    bgOscs.forEach((o) => {
-      try {
-        o.stop()
-      } catch {
-        /* */
-      }
-    })
-    bgOscs = []
+    audio.pause()
+    audio.currentTime = 0
     return
   }
-  if (bgOscs.length) return
-
-  const master = c.createGain()
-  master.gain.value = 0.06
-  master.connect(c.destination)
-
-  const freqs = [110, 164.81, 196]
-  freqs.forEach((f, i) => {
-    const o = c.createOscillator()
-    o.type = 'sine'
-    o.frequency.value = f
-    const g = c.createGain()
-    g.gain.value = 0.25 + i * 0.08
-    o.connect(g)
-    g.connect(master)
-    o.start()
-    bgOscs.push(o)
+  audio.volume = backsoundVolume
+  void audio.play().catch(() => {
+    /* Browser may block autoplay until user gesture. */
   })
 }
 
@@ -60,7 +64,7 @@ export function playTick(intensity: number): void {
   o.frequency.setValueAtTime(880 + intensity * 400, t)
   const g = c.createGain()
   g.gain.setValueAtTime(0.0001, t)
-  g.gain.exponentialRampToValueAtTime(0.08, t + 0.01)
+  g.gain.exponentialRampToValueAtTime(0.08 * sfxVolume, t + 0.01)
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04)
   o.connect(g)
   g.connect(c.destination)
@@ -77,7 +81,7 @@ export function playCount(n: number): void {
   o.frequency.setValueAtTime(220 + (4 - n) * 90, t)
   const g = c.createGain()
   g.gain.setValueAtTime(0.0001, t)
-  g.gain.exponentialRampToValueAtTime(0.18, t + 0.02)
+  g.gain.exponentialRampToValueAtTime(0.18 * sfxVolume, t + 0.02)
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
   o.connect(g)
   g.connect(c.destination)
@@ -96,7 +100,7 @@ export function playReveal(): void {
     o.frequency.value = f
     const g = c.createGain()
     g.gain.setValueAtTime(0.0001, t + i * 0.04)
-    g.gain.exponentialRampToValueAtTime(0.12, t + i * 0.04 + 0.05)
+    g.gain.exponentialRampToValueAtTime(0.12 * sfxVolume, t + i * 0.04 + 0.05)
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9)
     o.connect(g)
     g.connect(c.destination)

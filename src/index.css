@@ -129,6 +129,14 @@ body {
   user-select: none;
 }
 
+.toggle--volume {
+  gap: 0.35rem;
+}
+
+.toggle--volume input[type='range'] {
+  width: 92px;
+}
+
 .toggle input {
   accent-color: var(--red-bright);
 }

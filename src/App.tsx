@@ -9,6 +9,8 @@ import {
   playReveal,
   resumeAudio,
   setBacksound,
+  setBacksoundVolume,
+  setSfxVolume,
 } from './lib/sounds'
 import { DrawViewport } from './components/DrawViewport'
 import logo from './assets/logo.png'
@@ -37,14 +39,6 @@ function loadSession(): SessionData | null {
   } catch (error) {
     console.warn('Gagal memuat session:', error)
     return null
-  }
-}
-
-function clearSession(): void {
-  try {
-    sessionStorage.removeItem(SESSION_KEY)
-  } catch (error) {
-    console.warn('Gagal menghapus session:', error)
   }
 }
 
@@ -100,6 +94,8 @@ export default function App() {
 
   const [backsound, setBacksoundOn] = useState(false)
   const [sfx, setSfx] = useState(true)
+  const [backsoundLevel, setBacksoundLevel] = useState(35)
+  const [sfxLevel, setSfxLevel] = useState(100)
   const [historyOpen, setHistoryOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
   )
@@ -140,6 +136,14 @@ export default function App() {
   }, [backsound])
 
   useEffect(() => {
+    setBacksoundVolume(backsoundLevel / 100)
+  }, [backsoundLevel])
+
+  useEffect(() => {
+    setSfxVolume(sfxLevel / 100)
+  }, [sfxLevel])
+
+  useEffect(() => {
     if (phase !== 'countdown' || countdown === null) return
     if (countdown < 1) return
 
@@ -163,18 +167,6 @@ export default function App() {
     return () => window.clearTimeout(t)
   }, [phase, countdown, sfx])
 
-  const drawAgain = useCallback(async () => {
-    if (pool.length === 0) return
-    if (phase === 'shuffling' || phase === 'countdown') return
-    await resumeAudio()
-    const w = pickRandomParticipant(pool)
-    if (!w) return
-    pendingRef.current = w
-    setDisplayWinner(null)
-    setDrawKey((k) => k + 1)
-    setPhase('shuffling')
-  }, [phase, pool])
-
   const undoLastWinner = useCallback(() => {
     setHistory((h) => {
       if (h.length === 0) return h
@@ -189,18 +181,6 @@ export default function App() {
     pendingRef.current = null
     setCountdown(null)
     setDisplayWinner(null)
-  }, [])
-
-  const resetAll = useCallback(() => {
-    const snap = snapshotRef.current
-    setPool(snap.map((p) => ({ ...p })))
-    setHistory([])
-    setPhase('idle')
-    pendingRef.current = null
-    setCountdown(null)
-    setDisplayWinner(null)
-    setImportError(null)
-    clearSession()
   }, [])
 
   // Auto-save session after initial hydration to avoid overwriting existing session.
@@ -277,15 +257,44 @@ export default function App() {
               type="checkbox"
               checked={backsound}
               onChange={async (e) => {
-                await resumeAudio()
-                setBacksoundOn(e.target.checked)
+                const checked = e.target.checked
+                try {
+                  await resumeAudio()
+                } catch {
+                  // Tetap update toggle meski browser menolak resume audio context.
+                }
+                setBacksoundOn(checked)
               }}
             />
             <span>Backsound</span>
           </label>
+          <label className="toggle toggle--volume">
+            <span>Vol Backsound</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={backsoundLevel}
+              onChange={(e) => setBacksoundLevel(Number(e.target.value))}
+            />
+            <span>{backsoundLevel}%</span>
+          </label>
           <label className="toggle">
             <input type="checkbox" checked={sfx} onChange={(e) => setSfx(e.target.checked)} />
             <span>SFX</span>
+          </label>
+          <label className="toggle toggle--volume">
+            <span>Vol SFX</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={sfxLevel}
+              onChange={(e) => setSfxLevel(Number(e.target.value))}
+            />
+            <span>{sfxLevel}%</span>
           </label>
           <button type="button" className="btn btn--ghost" onClick={toggleFullscreen}>
             Layar penuh
@@ -406,27 +415,11 @@ export default function App() {
               <button
                 type="button"
                 className="btn btn--secondary"
-                disabled={pool.length === 0 || shuffling || phase === 'countdown'}
-                onClick={() => void drawAgain()}
-              >
-                Undi lagi
-              </button>
-              <button
-                type="button"
-                className="btn btn--secondary"
                 disabled={history.length === 0}
                 onClick={undoLastWinner}
                 title="Kembalikan pemenang terakhir ke pool (hapus dari riwayat)"
               >
-                Hapus pemenang dari daftar
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={snapshotRef.current.length === 0 && pool.length === 0}
-                onClick={resetAll}
-              >
-                Reset semua
+                Hapus riwayat pemenang
               </button>
             </div>
           </div>
