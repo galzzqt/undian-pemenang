@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Participant } from '../types'
 import { pickRandomParticipant, pickRandomParticipantExcluding } from '../lib/random'
 import { playTick } from '../lib/sounds'
@@ -127,35 +128,50 @@ export function DrawViewport({ pool, active, winner, sfxOn, onShuffleComplete }:
         >
           <div className="draw-viewport__scan" />
           {active && reel ? (
-            <div className="scroll-reel">
-              <div
+            <motion.div 
+              className="scroll-reel"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <motion.div
                 className="scroll-reel__strip"
-                style={{ transform: `translateY(${reel.motion}px)` }}
+                animate={{ translateY: reel.motion }}
+                transition={{ type: "spring", stiffness: 100, damping: 20 }}
               >
                 {reel.names.map((name, i) => {
                   const isCenter = i === CENTER
                   const rowBlur = isCenter ? 0 : reel.blur
                   return (
-                    <div
+                    <motion.div
                       key={i}
                       className="scroll-reel__row"
-                      style={
-                        rowBlur > 0.02
-                          ? ({ filter: `blur(${rowBlur}px)` } as React.CSSProperties)
-                          : undefined
-                      }
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ 
+                        opacity: 1, 
+                        y: 0,
+                        filter: rowBlur > 0.02 ? `blur(${rowBlur}px)` : "none"
+                      }}
+                      transition={{ duration: 0.3 }}
                     >
                       <span className="scroll-reel__name">{name}</span>
                       {isCenter && reel.subs[i] ? (
                         <span className="scroll-reel__sub">{reel.subs[i]}</span>
                       ) : null}
-                    </div>
+                    </motion.div>
                   )
                 })}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           ) : (
-            <span className="draw-viewport__placeholder">Siap mengundi</span>
+            <motion.span 
+              className="draw-viewport__placeholder"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              Siap mengundi
+            </motion.span>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import type { DrawPhase, Participant, WinnerRecord } from './types'
 import { parseParticipantsFile } from './lib/parseFile'
@@ -11,6 +12,41 @@ import {
 } from './lib/sounds'
 import { DrawViewport } from './components/DrawViewport'
 import logo from './assets/logo.png'
+
+// Session storage functions
+const SESSION_KEY = 'topsell_undian_session'
+
+interface SessionData {
+  pool: Participant[]
+  history: WinnerRecord[]
+  snapshot: Participant[]
+}
+
+function saveSession(data: SessionData): void {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+  } catch (error) {
+    console.warn('Gagal menyimpan session:', error)
+  }
+}
+
+function loadSession(): SessionData | null {
+  try {
+    const saved = localStorage.getItem(SESSION_KEY)
+    return saved ? JSON.parse(saved) : null
+  } catch (error) {
+    console.warn('Gagal memuat session:', error)
+    return null
+  }
+}
+
+function clearSession(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY)
+  } catch (error) {
+    console.warn('Gagal menghapus session:', error)
+  }
+}
 
 function fireCelebration(root: HTMLElement | null) {
   const rect = root?.getBoundingClientRect()
@@ -67,6 +103,16 @@ export default function App() {
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
   )
   const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Load session on app startup
+  useEffect(() => {
+    const session = loadSession()
+    if (session) {
+      setPool(session.pool)
+      setHistory(session.history)
+      snapshotRef.current = session.snapshot
+    }
+  }, [])
 
   const startDraw = useCallback(async () => {
     if (pool.length === 0) return
@@ -151,7 +197,28 @@ export default function App() {
     setCountdown(null)
     setDisplayWinner(null)
     setImportError(null)
+    clearSession()
   }, [])
+
+// Auto-save session when state changes
+useEffect(() => {
+  const sessionData: SessionData = {
+    pool,
+    history,
+    snapshot: snapshotRef.current
+  }
+  saveSession(sessionData)
+}, [pool, history])
+
+// Auto-save snapshot when it changes
+useEffect(() => {
+  const sessionData: SessionData = {
+    pool,
+    history,
+    snapshot: snapshotRef.current
+  }
+  saveSession(sessionData)
+}, [snapshotRef.current])
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -244,38 +311,91 @@ export default function App() {
           />
 
           {showCountdown && (
-            <div className="countdown-overlay" role="presentation">
-              <span className="countdown-overlay__num">{countdown}</span>
-            </div>
+            <motion.div 
+              className="countdown-overlay" 
+              role="presentation"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <motion.span 
+                className="countdown-overlay__num"
+                key={countdown}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              >
+                {countdown}
+              </motion.span>
+            </motion.div>
           )}
 
+          <AnimatePresence>
           {revealed && displayWinner && (
-            <div
+            <motion.div
               className="winner-modal"
               role="dialog"
               aria-modal="true"
               aria-labelledby="winner-modal-title"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-              <div className="winner-modal__backdrop" aria-hidden="true" />
-              <div className="winner-modal__box">
-                <button
+              <motion.div 
+                className="winner-modal__backdrop" 
+                aria-hidden="true"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              />
+              <motion.div 
+                className="winner-modal__box"
+                initial={{ opacity: 0, scale: 0.9, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <motion.button
                   type="button"
                   className="winner-modal__close"
                   onClick={() => setPhase('idle')}
                   aria-label="Tutup popup pemenang"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   ×
-                </button>
-                <p className="winner-modal__eyebrow" id="winner-modal-title">
+                </motion.button>
+                <motion.p 
+                  className="winner-modal__eyebrow" 
+                  id="winner-modal-title"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
                   Pemenang
-                </p>
-                <p className="winner-modal__name">{displayWinner.name}</p>
-                <p className="winner-modal__detail">
+                </motion.p>
+                <motion.p 
+                  className="winner-modal__name"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                >
+                  {displayWinner.name}
+                </motion.p>
+                <motion.p 
+                  className="winner-modal__detail"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.4 }}
+                >
                   {[displayWinner.no, displayWinner.category].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-            </div>
+                </motion.p>
+              </motion.div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
           <div className="stage__controls">
             <button
