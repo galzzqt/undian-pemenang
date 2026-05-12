@@ -16,3 +16,12 @@ export function pickRandom<T>(arr: readonly T[]): T | undefined {
 export function pickRandomParticipant(pool: readonly Participant[]): Participant | undefined {
   return pickRandom(pool)
 }
+
+/** Acak dari pool tanpa satu peserta (agar nama pemenang tidak bocor saat animasi) */
+export function pickRandomParticipantExcluding(
+  pool: readonly Participant[],
+  exclude: Participant,
+): Participant | undefined {
+  const filtered = pool.filter((p) => p.id !== exclude.id)
+  return pickRandomParticipant(filtered)
+}

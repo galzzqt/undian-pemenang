@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Participant } from '../types'
-import { pickRandomParticipant } from '../lib/random'
+import { pickRandomParticipant, pickRandomParticipantExcluding } from '../lib/random'
 import { playTick } from '../lib/sounds'
 
 type Props = {
@@ -11,16 +11,20 @@ type Props = {
   onShuffleComplete: () => void
 }
 
-const LANE_COUNT = 5
+const ROWS = 7
+const CENTER = 3
 
-/** Satu loop rAF: kartu tengah + kolom samping; setState sekali per frame */
+type ReelState = {
+  names: string[]
+  subs: string[]
+  motion: number
+  blur: number
+  t: number
+}
+
+/** Gulir nama: kecepatan sedang → melambat panjang → berhenti halus di pemenang (tengah) */
 export function DrawViewport({ pool, active, winner, sfxOn, onShuffleComplete }: Props) {
-  const [frame, setFrame] = useState({
-    hero: '',
-    sub: '',
-    glow: 0,
-    rails: Array.from({ length: LANE_COUNT }, () => ''),
-  })
+  const [reel, setReel] = useState<ReelState | null>(null)
   const doneRef = useRef(false)
   const sfxRef = useRef(0)
   const rafRef = useRef(0)
@@ -28,46 +32,80 @@ export function DrawViewport({ pool, active, winner, sfxOn, onShuffleComplete }:
   useEffect(() => {
     doneRef.current = false
     if (!active || !winner || pool.length === 0) {
-      if (!active) {
-        setFrame((f) => ({ ...f, glow: 0 }))
-      }
+      setReel(null)
       return
     }
 
     const start = performance.now()
-    const duration = 5600
+    /** Durasi lebih panjang agar terasa tidak terburu-buru */
+    const duration = 10800
 
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration)
-      const ease = 1 - (1 - t) ** 3.2
-      const bias = ease ** 1.35
+      const rawT = Math.min(1, (now - start) / duration)
 
-      const showWinner = Math.random() < bias
-      const pick = showWinner ? winner : pickRandomParticipant(pool) ?? winner
-      const rails = Array.from({ length: LANE_COUNT }, () => pickRandomParticipant(pool)?.name ?? '—')
+      /**
+       * Energi gulir: turun mulai awal tapi pengereman terasa panjang di ujung (pow tinggi).
+       */
+      const settle = (1 - rawT) ** 2.35
+      /** Frekuensi sin rendah = scroll tidak terlalu cepat; turun saat mendekati stop */
+      const wobbleHz = 0.0068 + settle * 0.016
+      const motion = settle * 12 * Math.sin(now * wobbleHz)
+      const blur = settle * 0.9
 
-      setFrame({
-        hero: pick.name,
-        sub: [pick.no, pick.category].filter(Boolean).join(' · '),
-        glow: 0.35 + ease * 0.65,
-        rails,
-      })
+      const names: string[] = []
+      const subs: string[] = []
+      for (let i = 0; i < ROWS; i++) {
+        const isCenter = i === CENTER
+        let pick: Participant
+        if (rawT < 1) {
+          /** Selama gulir: jangan pernah tampilkan nama pemenang (tengah & samping) */
+          pick =
+            pickRandomParticipantExcluding(pool, winner) ??
+            pickRandomParticipant(pool) ??
+            winner
+        } else {
+          /** Satu frame berhenti: hanya baris tengah yang pemenang */
+          pick = isCenter
+            ? winner
+            : pickRandomParticipantExcluding(pool, winner) ??
+              pickRandomParticipant(pool) ??
+              winner
+        }
+        names.push(pick.name)
+        subs.push([pick.no, pick.category].filter(Boolean).join(' · '))
+      }
 
-      const tickGap = 28 + ease * 220
+      const displayT = 1 - (1 - rawT) ** 2.6
+      setReel({ names, subs, motion, blur, t: displayT })
+
+      const tickGap = 72 + (1 - settle) * 240
       if (sfxOn && now - sfxRef.current > tickGap) {
-        playTick(ease)
+        playTick(displayT * 0.65)
         sfxRef.current = now
       }
 
-      if (t < 1) {
+      if (rawT < 1) {
         rafRef.current = requestAnimationFrame(tick)
       } else if (!doneRef.current) {
         doneRef.current = true
-        setFrame({
-          hero: winner.name,
-          sub: [winner.no, winner.category].filter(Boolean).join(' · '),
-          glow: 1,
-          rails,
+        const names: string[] = []
+        const subs: string[] = []
+        for (let i = 0; i < ROWS; i++) {
+          const p =
+            i === CENTER
+              ? winner
+              : pickRandomParticipantExcluding(pool, winner) ??
+                pickRandomParticipant(pool) ??
+                winner
+          names.push(p.name)
+          subs.push([p.no, p.category].filter(Boolean).join(' · '))
+        }
+        setReel({
+          names,
+          subs,
+          motion: 0,
+          blur: 0,
+          t: 1,
         })
         onShuffleComplete()
       }
@@ -77,42 +115,49 @@ export function DrawViewport({ pool, active, winner, sfxOn, onShuffleComplete }:
     return () => cancelAnimationFrame(rafRef.current)
   }, [active, onShuffleComplete, pool, sfxOn, winner])
 
+  const glow = active && reel ? 0.28 + reel.t * 0.62 : reel?.t ? 0.5 : 0
+
   return (
-    <div className="draw-viewport">
-      <div className="draw-viewport__grid">
-        <aside className="draw-viewport__rails" aria-hidden="true">
-          {frame.rails.map((text, i) => (
-            <div key={i} className="draw-viewport__rail">
-              <span className="draw-viewport__rail-text">{text}</span>
+    <div className="draw-viewport draw-viewport--solo">
+      <div className="draw-viewport__center">
+        <p className="draw-viewport__label">UNDIAN PEMENANG TOPSELL</p>
+        <div
+          className="draw-viewport__card"
+          style={{ '--g': glow } as React.CSSProperties}
+        >
+          <div className="draw-viewport__scan" />
+          {active && reel ? (
+            <div className="scroll-reel">
+              <div
+                className="scroll-reel__strip"
+                style={{ transform: `translateY(${reel.motion}px)` }}
+              >
+                {reel.names.map((name, i) => {
+                  const isCenter = i === CENTER
+                  const rowBlur = isCenter ? 0 : reel.blur
+                  return (
+                    <div
+                      key={i}
+                      className="scroll-reel__row"
+                      style={
+                        rowBlur > 0.02
+                          ? ({ filter: `blur(${rowBlur}px)` } as React.CSSProperties)
+                          : undefined
+                      }
+                    >
+                      <span className="scroll-reel__name">{name}</span>
+                      {isCenter && reel.subs[i] ? (
+                        <span className="scroll-reel__sub">{reel.subs[i]}</span>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          ))}
-        </aside>
-
-        <div className="draw-viewport__center">
-          <p className="draw-viewport__label">UNDIAN PEMENANG TOPSELL</p>
-          <div
-            className="draw-viewport__card"
-            style={{ '--g': frame.glow } as React.CSSProperties}
-          >
-            <div className="draw-viewport__scan" />
-            {active || frame.hero ? (
-              <>
-                <span className="draw-viewport__hero">{frame.hero || '—'}</span>
-                <span className="draw-viewport__meta">{frame.sub}</span>
-              </>
-            ) : (
-              <span className="draw-viewport__placeholder">Siap mengacak peserta</span>
-            )}
-          </div>
+          ) : (
+            <span className="draw-viewport__placeholder">Siap mengundi</span>
+          )}
         </div>
-
-        <aside className="draw-viewport__rails draw-viewport__rails--right" aria-hidden="true">
-          {frame.rails.map((_, i) => (
-            <div key={i} className="draw-viewport__rail">
-              <span className="draw-viewport__rail-text">{frame.rails[LANE_COUNT - 1 - i]!}</span>
-            </div>
-          ))}
-        </aside>
       </div>
     </div>
   )

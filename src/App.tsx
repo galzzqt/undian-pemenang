@@ -235,12 +235,22 @@ export default function App() {
           )}
 
           {revealed && displayWinner && (
-            <div className="winner-overlay">
-              <p className="winner-overlay__eyebrow">Pemenang</p>
-              <p className="winner-overlay__name">{displayWinner.name}</p>
-              <p className="winner-overlay__detail">
-                {[displayWinner.no, displayWinner.category].filter(Boolean).join(' · ')}
-              </p>
+            <div
+              className="winner-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="winner-modal-title"
+            >
+              <div className="winner-modal__backdrop" aria-hidden="true" />
+              <div className="winner-modal__box">
+                <p className="winner-modal__eyebrow" id="winner-modal-title">
+                  Pemenang
+                </p>
+                <p className="winner-modal__name">{displayWinner.name}</p>
+                <p className="winner-modal__detail">
+                  {[displayWinner.no, displayWinner.category].filter(Boolean).join(' · ')}
+                </p>
+              </div>
             </div>
           )}
 
