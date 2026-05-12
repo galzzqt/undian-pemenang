@@ -40,6 +40,19 @@ body {
     radial-gradient(1000px 520px at 50% -8%, rgba(254, 226, 226, 0.9) 0%, transparent 55%),
     linear-gradient(180deg, #ffffff 0%, var(--bg) 38%, #ebe8e6 100%);
   color: var(--text);
+  transition: background 0.3s ease;
+}
+
+.app--fullscreen {
+  background: #ffffff;
+}
+
+.app--fullscreen .layout {
+  background: #ffffff;
+}
+
+.app--fullscreen .winner-modal {
+  z-index: 300;
 }
 
 .sr-only {
@@ -123,9 +136,15 @@ body {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr minmax(260px, 320px);
+  grid-template-columns: 1.5fr minmax(260px, 280px);
   gap: 0;
   min-height: 0;
+  transition: grid-template-columns 0.3s ease;
+}
+
+.layout--fullscreen {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
 }
 
 .stage {
@@ -141,7 +160,7 @@ body {
 }
 
 .draw-viewport {
-  width: min(640px, 100%);
+  width: min(800px, 100%);
 }
 
 .draw-viewport--solo {
@@ -366,7 +385,7 @@ body {
 .winner-modal {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -434,10 +453,37 @@ body {
   color: var(--muted);
 }
 
+.winner-modal__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.winner-modal__close:hover {
+  background: var(--red-bright);
+  color: white;
+  border-color: var(--red-bright);
+  transform: scale(1.1);
+}
+
 .stage__controls {
   position: relative;
   z-index: 110;
-  width: min(720px, 100%);
+  width: min(800px, 100%);
   max-width: 100%;
   min-width: 0;
   margin-inline: auto;
@@ -529,6 +575,24 @@ body {
   gap: 0.75rem;
   min-height: 0;
   box-shadow: -8px 0 32px rgba(15, 23, 42, 0.04);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.panel--hidden {
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+.app--fullscreen .panel {
+  position: static;
+  border-left: none;
+  border-top: 1px solid var(--line);
+  padding: 1rem;
+  background: var(--panel);
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.04);
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .panel__head {

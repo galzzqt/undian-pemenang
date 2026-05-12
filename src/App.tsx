@@ -66,6 +66,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
   )
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const startDraw = useCallback(async () => {
     if (pool.length === 0) return
@@ -176,8 +177,22 @@ export default function App() {
 
   const toggleFullscreen = useCallback(() => {
     const el = rootRef.current ?? document.documentElement
-    if (!document.fullscreenElement) void el.requestFullscreen?.()
-    else void document.exitFullscreen?.()
+    if (!document.fullscreenElement) {
+      void el.requestFullscreen?.()
+      setIsFullscreen(true)
+    } else {
+      void document.exitFullscreen?.()
+      setIsFullscreen(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
   const pending = pendingRef.current
@@ -186,7 +201,7 @@ export default function App() {
   const revealed = phase === 'revealed'
 
   return (
-    <div className="app" ref={rootRef}>
+    <div className={`app ${isFullscreen ? 'app--fullscreen' : ''}`} ref={rootRef}>
       <header className="topbar">
         <div className="topbar__brand">
           <img className="topbar__logo" src={logo} alt="" width={42} height={42} decoding="async" />
@@ -217,7 +232,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="layout">
+      <div className={`layout ${isFullscreen ? 'layout--fullscreen' : ''}`}>
         <main className="stage">
           <DrawViewport
             key={drawKey}
@@ -243,6 +258,14 @@ export default function App() {
             >
               <div className="winner-modal__backdrop" aria-hidden="true" />
               <div className="winner-modal__box">
+                <button
+                  type="button"
+                  className="winner-modal__close"
+                  onClick={() => setPhase('idle')}
+                  aria-label="Tutup popup pemenang"
+                >
+                  ×
+                </button>
                 <p className="winner-modal__eyebrow" id="winner-modal-title">
                   Pemenang
                 </p>
