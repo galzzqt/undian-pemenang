@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import type { Participant } from '../types'
 import { pickRandomParticipant, pickRandomParticipantExcluding } from '../lib/random'
 import { playTick } from '../lib/sounds'

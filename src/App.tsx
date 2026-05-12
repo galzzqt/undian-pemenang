@@ -24,7 +24,7 @@ interface SessionData {
 
 function saveSession(data: SessionData): void {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(data))
   } catch (error) {
     console.warn('Gagal menyimpan session:', error)
   }
@@ -32,7 +32,7 @@ function saveSession(data: SessionData): void {
 
 function loadSession(): SessionData | null {
   try {
-    const saved = localStorage.getItem(SESSION_KEY)
+    const saved = sessionStorage.getItem(SESSION_KEY)
     return saved ? JSON.parse(saved) : null
   } catch (error) {
     console.warn('Gagal memuat session:', error)
@@ -42,7 +42,7 @@ function loadSession(): SessionData | null {
 
 function clearSession(): void {
   try {
-    localStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_KEY)
   } catch (error) {
     console.warn('Gagal menghapus session:', error)
   }
@@ -96,12 +96,14 @@ export default function App() {
   const [importing, setImporting] = useState(false)
   const [drawKey, setDrawKey] = useState(0)
   const [displayWinner, setDisplayWinner] = useState<Participant | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
 
   const [backsound, setBacksoundOn] = useState(false)
   const [sfx, setSfx] = useState(true)
   const [historyOpen, setHistoryOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
   )
+  const [controlOpen, setControlOpen] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Load session on app startup
@@ -112,6 +114,7 @@ export default function App() {
       setHistory(session.history)
       snapshotRef.current = session.snapshot
     }
+    setSessionReady(true)
   }, [])
 
   const startDraw = useCallback(async () => {
@@ -200,25 +203,16 @@ export default function App() {
     clearSession()
   }, [])
 
-// Auto-save session when state changes
-useEffect(() => {
-  const sessionData: SessionData = {
-    pool,
-    history,
-    snapshot: snapshotRef.current
-  }
-  saveSession(sessionData)
-}, [pool, history])
-
-// Auto-save snapshot when it changes
-useEffect(() => {
-  const sessionData: SessionData = {
-    pool,
-    history,
-    snapshot: snapshotRef.current
-  }
-  saveSession(sessionData)
-}, [snapshotRef.current])
+  // Auto-save session after initial hydration to avoid overwriting existing session.
+  useEffect(() => {
+    if (!sessionReady) return
+    const sessionData: SessionData = {
+      pool,
+      history,
+      snapshot: snapshotRef.current,
+    }
+    saveSession(sessionData)
+  }, [history, pool, sessionReady])
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -438,65 +432,85 @@ useEffect(() => {
           </div>
         </main>
 
-        <aside className={`panel ${historyOpen ? 'panel--open' : ''}`}>
+        <div className={`side-column ${historyOpen ? 'side-column--open' : ''}`}>
+        <aside className="panel panel--control">
           <div className="panel__head">
             <h2>Kontrol acara</h2>
-            <button
-              type="button"
-              className="btn btn--ghost panel__close"
-              aria-expanded={historyOpen}
-              onClick={() => setHistoryOpen((o) => !o)}
-            >
-              {historyOpen ? 'Tutup' : 'Menu'}
-            </button>
+            <div className="panel__head-actions">
+              <button
+                type="button"
+                className="btn btn--ghost panel__toggle"
+                aria-expanded={controlOpen}
+                onClick={() => setControlOpen((o) => !o)}
+              >
+                {controlOpen ? 'Hide' : 'Tampil'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost panel__close"
+                aria-expanded={historyOpen}
+                onClick={() => setHistoryOpen((o) => !o)}
+              >
+                {historyOpen ? 'Tutup' : 'Menu'}
+              </button>
+            </div>
           </div>
 
-          <section className="panel__section">
-            <h3>Impor peserta</h3>
-            <p className="panel__hint">
-              Excel (.xlsx) atau CSV dengan kolom <strong>Nomor</strong>, <strong>Nama</strong>, opsional{' '}
-              <strong>Kategori</strong>. Mendukung hingga ribuan baris.
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="sr-only"
-              onChange={(e) => void onFile(e)}
-            />
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={importing}
-              onClick={() => fileRef.current?.click()}
-            >
-              {importing ? 'Membaca…' : 'Pilih file'}
-            </button>
-            {importError && <p className="panel__error">{importError}</p>}
-            <p className="panel__stat">
-              Pool: <strong>{pool.length}</strong> peserta · Riwayat:{' '}
-              <strong>{history.length}</strong>
-            </p>
-          </section>
+          {controlOpen ? (
+            <section className="panel__section">
+              <h3>Impor peserta</h3>
+              <p className="panel__hint">
+                Excel (.xlsx) atau CSV dengan kolom <strong>Nomor</strong>, <strong>Nama</strong>, opsional{' '}
+                <strong>Kategori</strong>. Mendukung hingga ribuan baris.
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                onChange={(e) => void onFile(e)}
+              />
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={importing}
+                onClick={() => fileRef.current?.click()}
+              >
+                {importing ? 'Membaca…' : 'Pilih file'}
+              </button>
+              {importError && <p className="panel__error">{importError}</p>}
+              <p className="panel__stat">
+                Pool: <strong>{pool.length}</strong> peserta · Riwayat:{' '}
+                <strong>{history.length}</strong>
+              </p>
+            </section>
+          ) : null}
+        </aside>
 
-          <section className="panel__section">
-            <h3>Riwayat pemenang</h3>
+          <aside className="panel panel--history">
+            <div className="panel__head">
+              <h2>Riwayat pemenang</h2>
+            </div>
             <ol className="history-list">
               {history.length === 0 && <li className="history-list__empty">Belum ada pemenang.</li>}
               {history
                 .slice()
                 .reverse()
-                .map((h) => (
+                .map((h, idx) => {
+                  const winnerNumber = history.length - idx
+                  return (
                   <li key={`${h.participant.id}-${h.at}`} className="history-list__item">
+                    <span className="history-list__number">{winnerNumber}.</span>
                     <span className="history-list__name">{h.participant.name}</span>
                     <span className="history-list__meta">
                       {[h.participant.no, h.participant.category].filter(Boolean).join(' · ')}
                     </span>
                   </li>
-                ))}
+                  )
+                })}
             </ol>
-          </section>
-        </aside>
+          </aside>
+        </div>
       </div>
 
       <button
