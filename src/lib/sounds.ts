@@ -4,7 +4,7 @@ import backsoundUrl from '../assets/backsound.mp3'
 let ctx: AudioContext | null = null
 let bgAudio: HTMLAudioElement | null = null
 let sfxVolume = 1
-let backsoundVolume = 0.35
+let backsoundVolume = 0.05
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null

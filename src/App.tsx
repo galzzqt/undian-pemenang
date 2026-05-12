@@ -15,7 +15,7 @@ import {
 import { DrawViewport } from './components/DrawViewport'
 import logo from './assets/logo.png'
 
-// Session storage functions
+// Persistent storage functions
 const SESSION_KEY = 'topsell_undian_session'
 
 interface SessionData {
@@ -26,7 +26,7 @@ interface SessionData {
 
 function saveSession(data: SessionData): void {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(data))
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
   } catch (error) {
     console.warn('Gagal menyimpan session:', error)
   }
@@ -34,7 +34,7 @@ function saveSession(data: SessionData): void {
 
 function loadSession(): SessionData | null {
   try {
-    const saved = sessionStorage.getItem(SESSION_KEY)
+    const saved = localStorage.getItem(SESSION_KEY)
     return saved ? JSON.parse(saved) : null
   } catch (error) {
     console.warn('Gagal memuat session:', error)
@@ -94,7 +94,7 @@ export default function App() {
 
   const [backsound, setBacksoundOn] = useState(false)
   const [sfx, setSfx] = useState(true)
-  const [backsoundLevel, setBacksoundLevel] = useState(35)
+  const [backsoundLevel, setBacksoundLevel] = useState(5)
   const [sfxLevel, setSfxLevel] = useState(100)
   const [historyOpen, setHistoryOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 960px)').matches : true,
@@ -183,6 +183,18 @@ export default function App() {
     setDisplayWinner(null)
   }, [])
 
+  const resetAll = useCallback(() => {
+    const snap = snapshotRef.current
+    if (snap.length === 0 && pool.length === 0) return
+    setPool(snap.map((p) => ({ ...p })))
+    setHistory([])
+    setPhase('idle')
+    pendingRef.current = null
+    setCountdown(null)
+    setDisplayWinner(null)
+    setImportError(null)
+  }, [pool.length])
+
   // Auto-save session after initial hydration to avoid overwriting existing session.
   useEffect(() => {
     if (!sessionReady) return
@@ -215,6 +227,24 @@ export default function App() {
       setImporting(false)
     }
   }
+
+  const downloadTemplate = useCallback(async () => {
+    setImportError(null)
+    try {
+      const XLSX = await import('xlsx')
+      const rows = [
+        ['Nomor', 'Nama', 'Kategori'],
+        ['001', 'Budi Santoso', 'Regular'],
+        ['002', 'Siti Aminah', 'VIP'],
+      ]
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Peserta')
+      XLSX.writeFile(wb, 'template-peserta-undian.xlsx')
+    } catch {
+      setImportError('Gagal membuat template. Coba lagi.')
+    }
+  }, [])
 
   const toggleFullscreen = useCallback(() => {
     const el = rootRef.current ?? document.documentElement
@@ -298,6 +328,13 @@ export default function App() {
           </label>
           <button type="button" className="btn btn--ghost" onClick={toggleFullscreen}>
             Layar penuh
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => window.open('https://choliltopsell.github.io/generator/', '_blank', 'noopener,noreferrer')}
+          >
+            Kembali ke Generator
           </button>
         </div>
       </header>
@@ -421,6 +458,14 @@ export default function App() {
               >
                 Hapus riwayat pemenang
               </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={snapshotRef.current.length === 0 && pool.length === 0}
+                onClick={resetAll}
+              >
+                Reset semua
+              </button>
             </div>
           </div>
         </main>
@@ -453,8 +498,8 @@ export default function App() {
             <section className="panel__section">
               <h3>Impor peserta</h3>
               <p className="panel__hint">
-                Excel (.xlsx) atau CSV dengan kolom <strong>Nomor</strong>, <strong>Nama</strong>, opsional{' '}
-                <strong>Kategori</strong>. Mendukung hingga ribuan baris.
+                Excel (.xlsx) atau CSV dengan kolom <strong>Nama</strong>, opsional{' '}
+                <strong>Kategori</strong>, <strong>Nomor</strong>. Mendukung hingga ribuan baris.
               </p>
               <input
                 ref={fileRef}
@@ -463,18 +508,28 @@ export default function App() {
                 className="sr-only"
                 onChange={(e) => void onFile(e)}
               />
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={importing}
-                onClick={() => fileRef.current?.click()}
-              >
-                {importing ? 'Membaca…' : 'Pilih file'}
-              </button>
+              <div className="panel__file-actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={importing}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {importing ? 'Membaca…' : 'Pilih file'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => void downloadTemplate()}
+                >
+                  Download template Excel
+                </button>
+              </div>
               {importError && <p className="panel__error">{importError}</p>}
               <p className="panel__stat">
                 Pool: <strong>{pool.length}</strong> peserta · Riwayat:{' '}
                 <strong>{history.length}</strong>
+                <p>Peserta yang menang otomatis dikeluarkan dari pool</p>
               </p>
             </section>
           ) : null}
@@ -516,7 +571,7 @@ export default function App() {
       </button>
 
       <footer className="foot">
-        <span>Peserta yang menang otomatis dikeluarkan dari pool · Gunakan fullscreen di LED</span>
+        <span>Topsell Undian - Tim Topsell Web</span>
       </footer>
     </div>
   )

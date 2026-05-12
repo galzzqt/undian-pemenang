@@ -671,6 +671,13 @@ body {
   color: var(--muted);
 }
 
+.panel__file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .panel__error {
   margin: 0.5rem 0 0;
   font-size: 0.82rem;
