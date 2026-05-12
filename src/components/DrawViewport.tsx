@@ -89,7 +89,7 @@ export function DrawViewport({ pool, active, winner, sfxOn, onShuffleComplete }:
         </aside>
 
         <div className="draw-viewport__center">
-          <p className="draw-viewport__label">Digital Lucky Draw</p>
+          <p className="draw-viewport__label">UNDIAN PEMENANG TOPSELL</p>
           <div
             className="draw-viewport__card"
             style={{ '--g': frame.glow } as React.CSSProperties}
